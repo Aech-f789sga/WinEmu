@@ -150,7 +150,8 @@ private val shortcutComponentRowsV2 = listOf(
     "directshow" to "DirectShow",
     "directplay" to "DirectPlay",
     "xaudio" to "XAudio",
-    "vcrun2010" to "Visual C++ 2010"
+    "vcrun2010" to "Visual C++ 2010",
+    "vcrun2022" to "Visual C++ 2015-2022"
 )
 
 private val execArgumentPresetsV2 = listOf(

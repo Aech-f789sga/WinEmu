@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - 4.1
+      # Perf + VC++ runtime branch; remove once merged if you don't want per-push builds.
+      - perf/defaults-tuning
 permissions:
   contents: write
 
