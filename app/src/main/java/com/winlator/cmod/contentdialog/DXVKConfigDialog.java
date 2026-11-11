@@ -363,7 +363,9 @@ public class DXVKConfigDialog extends ContentDialog {
         String maxFrameLatency = config.get("maxFrameLatency");
         if (!maxFrameLatency.isEmpty() && !maxFrameLatency.equals("0")) {
             if (!content.isEmpty()) content += "; ";
-            content += "dxgi.maxFrameLatency = 1";
+            // d3d9.maxFrameLatency was missing, so the toggle silently did nothing for
+            // D3D9 games while the framerate setting above correctly covered both APIs.
+            content += "dxgi.maxFrameLatency = 1; d3d9.maxFrameLatency = 1";
         }
 
         String textureOptions = textureFilteringOptions(config, autoLodBias);
@@ -379,6 +381,13 @@ public class DXVKConfigDialog extends ContentDialog {
         String asyncCache = config.get("asyncCache");
         if (!asyncCache.isEmpty() && !asyncCache.equals("0"))
             envVars.put("DXVK_GPLASYNCCACHE", "1");
+
+        // DXVK otherwise spawns one shader-compiler thread per core, which spikes RSS
+        // while pipelines compile and fights the game thread for CPU. Half the cores,
+        // capped at 4, keeps compilation responsive without the memory peak.
+        int compilerThreads = Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() / 2));
+        if (!content.isEmpty()) content += "; ";
+        content += "dxvk.numCompilerThreads = " + compilerThreads;
 
         if (!content.isEmpty())
             envVars.put("DXVK_CONFIG", content);

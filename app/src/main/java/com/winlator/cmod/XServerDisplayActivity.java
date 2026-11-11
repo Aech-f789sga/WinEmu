@@ -1426,6 +1426,13 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (!envVars.has("WINE_FAST_YIELD")) {
                 envVars.put("WINE_FAST_YIELD", "1");
             }
+            // Containers created before MALLOC_ARENA_MAX was added to DEFAULT_ENV_VARS
+            // never get it, so inject it at launch. Bounding glibc's per-thread arenas
+            // keeps Wine/box64/DXVK RSS closer to the game's real working set.
+            // Still overridable per-container by setting the variable explicitly.
+            if (!envVars.has("MALLOC_ARENA_MAX")) {
+                envVars.put("MALLOC_ARENA_MAX", "2");
+            }
 
             ArrayList<String> bindingPaths = new ArrayList<>();
             for (String[] drive : container.drivesIterator()) {

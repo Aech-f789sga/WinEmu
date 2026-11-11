@@ -29,7 +29,11 @@ public class Container {
         THUMBSTICK_UP, THUMBSTICK_DOWN, THUMBSTICK_LEFT, THUMBSTICK_RIGHT
     }
     public static final String DEFAULT_DISPLAY_DRIVER = "egl";
-    public static final String DEFAULT_ENV_VARS = "WRAPPER_MAX_IMAGE_COUNT=0 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=1 TU_DEBUG=noconform,sysmem DXVK_HUD=devinfo,fps,frametimes,gpuload,version,api VKD3D_SHADER_MODEL=6_6";
+    // DXVK_HUD and TU_DEBUG are debug-only and are stripped by cleanContainerEnvironment();
+    // shipping them here made every new container render a six-field overlay.
+    // MALLOC_ARENA_MAX bounds glibc's per-thread arenas, which Wine/box64/DXVK otherwise
+    // multiply across threads and inflate RSS well beyond the game's real working set.
+    public static final String DEFAULT_ENV_VARS = "WRAPPER_MAX_IMAGE_COUNT=0 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=1 MALLOC_ARENA_MAX=2 VKD3D_SHADER_MODEL=6_6";
     public static final String DEFAULT_SCREEN_SIZE = "1280x720";
     /** Panel-shaped default for new containers; existing container data is never changed. */
     public static String defaultScreenSizeFor(android.content.Context context) {
@@ -89,7 +93,10 @@ public class Container {
     private String desktopTheme = WineThemeManager.DEFAULT_DESKTOP_THEME;
     private String fexcoreVersion;
     private String fexcorePreset = FEXCorePreset.INTERMEDIATE;
-    private String box64Preset = Box64Preset.COMPATIBILITY;
+    // PERFORMANCE uses DYNAREC_BIGBLOCK=3 / FORWARD=512 / CALLRET=1, whereas
+    // COMPATIBILITY pins BIGBLOCK=0 and leaves a large amount of dynarec throughput
+    // unused. Only affects containers created from now on; saved presets are untouched.
+    private String box64Preset = Box64Preset.PERFORMANCE;
     private File rootDir;
     private JSONObject extraData;
     private String midiSoundFont = "";
