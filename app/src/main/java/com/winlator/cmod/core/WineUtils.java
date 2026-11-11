@@ -53,6 +53,43 @@ public abstract class WineUtils {
         registryEditor.setHexValue("Control Panel\\Desktop\\WindowMetrics", "StatusFont", fontNormalData);
     }
 
+    /**
+     * Many launchers and installers gate on the Visual C++ 2015-2022 redistributable by
+     * reading these keys rather than by probing for msvcp140/vcruntime140. Wine ships
+     * builtin implementations of the whole 14.x family (they are listed in
+     * common_dlls.json) but never writes the redistributable's own keys, so such checks
+     * fail even though the DLLs resolve fine. Publishing the keys lets those launchers
+     * proceed against the builtin runtime.
+     *
+     * This is a compatibility shim, not a real redistributable install. If a title needs
+     * native runtime internals instead of Wine's reimplementation, run the genuine
+     * VC_redist package inside the container - that writes these same keys for real.
+     */
+    private static void setVCRuntimeRegistryKeys(File systemRegFile) {
+        // Native view carries both the 64-bit and 32-bit runtimes; the WOW6432Node view
+        // only ever holds the 32-bit one.
+        final String[] nativeViewRuntimes = {"x64", "x86"};
+        final String[] wowViewRuntimes = {"x86"};
+
+        try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
+            for (String runtime : nativeViewRuntimes)
+                writeVCRuntimeKey(registryEditor, "Software\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + runtime);
+            for (String runtime : wowViewRuntimes)
+                writeVCRuntimeKey(registryEditor, "Software\\WOW6432Node\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\" + runtime);
+        }
+    }
+
+    private static void writeVCRuntimeKey(WineRegistryEditor registryEditor, String key) {
+        registryEditor.setDwordValue(key, "Installed", 1);
+        registryEditor.setDwordValue(key, "Major", 14);
+        registryEditor.setDwordValue(key, "Minor", 0);
+        registryEditor.setDwordValue(key, "Bld", 35211);
+        registryEditor.setDwordValue(key, "Rbld", 0);
+        // 1 = redistributable build, 0 = debug build.
+        registryEditor.setDwordValue(key, "Type", 1);
+        registryEditor.setStringValue(key, "Version", "v14.0.35211.00");
+    }
+
     public static void applySystemTweaks(Context context, WineInfo wineInfo) {
         File rootDir = ImageFs.find(context).getRootDir();
         File systemRegFile = new File(rootDir, ImageFs.WINEPREFIX+"/system.reg");
@@ -68,14 +105,21 @@ public abstract class WineUtils {
             registryEditor.setStringValue("Software\\Classes\\inifile\\DefaultIcon", null, "shell32.dll,-151");
         }
 
+        setVCRuntimeRegistryKeys(systemRegFile);
+
         final String[] direct3dLibs = {"d3d8", "d3d9", "d3d10", "d3d10_1", "d3d10core", "d3d11", "d3d12", "d3d12core", "ddraw", "dxgi", "wined3d"};
         final String[] xinputLibs = {"dinput", "dinput8", "xinput1_1", "xinput1_2", "xinput1_3", "xinput1_4", "xinput9_1_0", "xinputuap"};
+        final String[] vcRuntimeLibs = {"msvcp140", "msvcp140_1", "msvcp140_2", "msvcp140_atomic_wait", "msvcp140_codecvt_ids", "vcruntime140", "vcruntime140_1", "concrt140", "vcomp140"};
         final String dllOverridesKey = "Software\\Wine\\DllOverrides";
         final String[] openglLibs = {"opengl32"};
 
         try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
             for (String name : direct3dLibs) registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
             for (String name : xinputLibs) registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
+            // Prefer a native 14.x runtime when the prefix actually has one (shipped next to
+            // the game, or installed by a genuine VC_redist run); otherwise Wine's builtin
+            // reimplementation is used, so this cannot make a working setup worse.
+            for (String name : vcRuntimeLibs) registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
             setWindowMetrics(registryEditor);
             if (wineInfo.isArm64EC() && !GPUInformation.getRenderer(null,null).contains("Mali")) for(String name: openglLibs) registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
         }
