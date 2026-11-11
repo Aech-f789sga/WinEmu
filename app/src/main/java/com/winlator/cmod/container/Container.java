@@ -61,7 +61,10 @@ public class Container {
             "vulkanVersion=" + DEFAULT_VULKAN_VERSION + ";version=" + ";blacklistedExtensions=" + ";maxDeviceMemory=0" + ";presentMode=mailbox" + ";syncFrame=0" + ";disablePresentWait=0" + ";timelineSemaphores=0" + ";resourceType=auto" + ";bcnEmulation=auto" + ";bcnEmulationType=compute" + ";bcnEmulationCache=0" + ";gpuName=Device";
     public static final String DEFAULT_DDRAWRAPPER = "none";
     public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=0,directmusic=0,directshow=0,directplay=0,xaudio=0,vcrun2010=1,vcrun2022=1,builtinDecoder=gstreamer,softwareDecoding=0";
-    public static final String FALLBACK_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=1,directplay=1,xaudio=1,vcrun2010=1,vcrun2022=1";
+    // Must stay the pre-vcrun2022 set. This doubles as the "last applied" snapshot when a
+    // container has no stored one, so listing vcrun2022 here would make existing
+    // containers believe it was already extracted and skip it forever.
+    public static final String FALLBACK_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=1,directplay=1,xaudio=1,vcrun2010=1";
     public static final String DEFAULT_DRIVES = "F:"+Environment.getExternalStorageDirectory().getAbsolutePath()+"D:"+Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
     public static final byte STARTUP_SELECTION_NORMAL = 0;
     public static final byte STARTUP_SELECTION_ESSENTIAL = 1;
